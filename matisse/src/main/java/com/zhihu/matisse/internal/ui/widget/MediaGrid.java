@@ -29,7 +29,7 @@ import com.zhihu.matisse.R;
 import com.zhihu.matisse.internal.entity.Item;
 import com.zhihu.matisse.internal.entity.SelectionSpec;
 
-public class MediaGrid extends SquareFrameLayout implements View.OnClickListener {
+public class MediaGrid extends SquareFrameLayout implements View.OnClickListener, View.OnLongClickListener {
 
     private ImageView mThumbnail;
     private CheckView mCheckView;
@@ -39,15 +39,18 @@ public class MediaGrid extends SquareFrameLayout implements View.OnClickListener
     private Item mMedia;
     private PreBindInfo mPreBindInfo;
     private OnMediaGridClickListener mListener;
+    private OnMediaGridLongClickListener mLongListener;
 
     public MediaGrid(Context context) {
         super(context);
         init(context);
+        this.setOnLongClickListener(this);
     }
 
     public MediaGrid(Context context, AttributeSet attrs) {
         super(context, attrs);
         init(context);
+        this.setOnLongClickListener(this);
     }
 
     private void init(Context context) {
@@ -71,6 +74,15 @@ public class MediaGrid extends SquareFrameLayout implements View.OnClickListener
                 mListener.onCheckViewClicked(mCheckView, mMedia, mPreBindInfo.mViewHolder);
             }
         }
+    }
+
+    @Override
+    public boolean onLongClick(View v) {
+        if (mLongListener != null) {
+            mLongListener.onThumbnailLongClick(mMedia, mPreBindInfo.mViewHolder);
+        }
+
+        return false;
     }
 
     public void preBindMedia(PreBindInfo info) {
@@ -136,11 +148,24 @@ public class MediaGrid extends SquareFrameLayout implements View.OnClickListener
         mListener = null;
     }
 
+    public void setOnMediaGridLongClickListener(OnMediaGridLongClickListener listener) {
+        mLongListener = listener;
+    }
+
+    public void removeOnMediaGridLongClickListener() {
+        mLongListener = null;
+    }
+
     public interface OnMediaGridClickListener {
 
         void onThumbnailClicked(ImageView thumbnail, Item item, RecyclerView.ViewHolder holder);
 
         void onCheckViewClicked(CheckView checkView, Item item, RecyclerView.ViewHolder holder);
+    }
+
+    public interface OnMediaGridLongClickListener {
+
+        void onThumbnailLongClick(Item item, RecyclerView.ViewHolder holder);
     }
 
     public static class PreBindInfo {

@@ -28,6 +28,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.michaelflisar.dragselectrecyclerview.DragSelectTouchListener;
 import com.zhihu.matisse.R;
 import com.zhihu.matisse.internal.entity.Album;
 import com.zhihu.matisse.internal.entity.Item;
@@ -37,9 +38,11 @@ import com.zhihu.matisse.internal.model.SelectedItemCollection;
 import com.zhihu.matisse.internal.ui.widget.CheckView;
 import com.zhihu.matisse.internal.ui.widget.MediaGrid;
 
+import java.util.HashSet;
+
 public class AlbumMediaAdapter extends
         RecyclerViewCursorAdapter<RecyclerView.ViewHolder> implements
-        MediaGrid.OnMediaGridClickListener {
+        MediaGrid.OnMediaGridClickListener, MediaGrid.OnMediaGridLongClickListener {
 
     private static final int VIEW_TYPE_CAPTURE = 0x01;
     private static final int VIEW_TYPE_MEDIA = 0x02;
@@ -51,6 +54,10 @@ public class AlbumMediaAdapter extends
     private RecyclerView mRecyclerView;
     private int mImageResize;
 
+    // Drag selection
+    private HashSet<Long> mSelected;
+    private DragSelectTouchListener mDragSelectTouchListener;
+
     public AlbumMediaAdapter(Context context, SelectedItemCollection selectedCollection, RecyclerView recyclerView) {
         super(null);
         mSelectionSpec = SelectionSpec.getInstance();
@@ -61,6 +68,8 @@ public class AlbumMediaAdapter extends
         ta.recycle();
 
         mRecyclerView = recyclerView;
+
+        mSelected = new HashSet<>();
     }
 
     @Override
@@ -121,6 +130,7 @@ public class AlbumMediaAdapter extends
             ));
             mediaViewHolder.mMediaGrid.bindMedia(item);
             mediaViewHolder.mMediaGrid.setOnMediaGridClickListener(this);
+            mediaViewHolder.mMediaGrid.setOnMediaGridLongClickListener(this);
             setCheckStatus(item, mediaViewHolder.mMediaGrid);
         }
     }
@@ -141,7 +151,8 @@ public class AlbumMediaAdapter extends
                 }
             }
         } else {
-            boolean selected = mSelectedCollection.isSelected(item);
+//            boolean selected = mSelectedCollection.isSelected(item);
+            boolean selected = mSelected.contains(item.id);
             if (selected) {
                 mediaGrid.setCheckEnabled(true);
                 mediaGrid.setChecked(true);
@@ -159,9 +170,12 @@ public class AlbumMediaAdapter extends
 
     @Override
     public void onThumbnailClicked(ImageView thumbnail, Item item, RecyclerView.ViewHolder holder) {
-        if (mOnMediaClickListener != null) {
-            mOnMediaClickListener.onMediaClick(null, item, holder.getAdapterPosition());
+        if (mDragSelectTouchListener != null) {
+            mDragSelectTouchListener.startDragSelection(holder.getAdapterPosition());
         }
+//        if (mOnMediaClickListener != null) {
+//            mOnMediaClickListener.onMediaClick(null, item, holder.getAdapterPosition());
+//        }
     }
 
     @Override
@@ -180,13 +194,22 @@ public class AlbumMediaAdapter extends
         } else {
             if (mSelectedCollection.isSelected(item)) {
                 mSelectedCollection.remove(item);
+                select(item.id, false);
                 notifyCheckStateChanged();
             } else {
                 if (assertAddSelection(holder.itemView.getContext(), item)) {
                     mSelectedCollection.add(item);
                     notifyCheckStateChanged();
+                    select(item.id, true);
                 }
             }
+        }
+    }
+
+    @Override
+    public void onThumbnailLongClick(Item item, RecyclerView.ViewHolder holder) {
+        if (mDragSelectTouchListener != null) {
+            mDragSelectTouchListener.startDragSelection(holder.getAdapterPosition());
         }
     }
 
@@ -218,6 +241,10 @@ public class AlbumMediaAdapter extends
 
     public void registerOnMediaClickListener(OnMediaClickListener listener) {
         mOnMediaClickListener = listener;
+    }
+
+    public void registerDragSelectTouchListener(DragSelectTouchListener listener) {
+        mDragSelectTouchListener = listener;
     }
 
     public void unregisterOnMediaClickListener() {
@@ -267,7 +294,7 @@ public class AlbumMediaAdapter extends
         void capture();
     }
 
-    private static class MediaViewHolder extends RecyclerView.ViewHolder {
+    private class MediaViewHolder extends RecyclerView.ViewHolder{
 
         private MediaGrid mMediaGrid;
 
@@ -288,4 +315,42 @@ public class AlbumMediaAdapter extends
         }
     }
 
+    // ----------------------
+    // Selection
+    // ----------------------
+
+    public void toggleSelection(long pos) {
+        if (mSelected.contains(pos))
+            mSelected.remove(pos);
+        else
+            mSelected.add(pos);
+        notifyItemChanged((int)pos);
+    }
+
+    public void select(long pos, boolean selected) {
+        if (selected)
+            mSelected.add(pos);
+        else
+            mSelected.remove(pos);
+        notifyItemChanged((int)pos);
+    }
+
+    public void selectRange(int start, int end, boolean selected) {
+        for (int i = start; i <= end; i++)
+        {
+            if (selected)
+                mSelected.add(Long.parseLong(String.valueOf(i))); // TODO ORRIBILE!!!!!!!!!!!!!
+            else
+                mSelected.remove(i);
+        }
+        notifyItemRangeChanged(start, end - start + 1);
+    }
+
+    public int getCountSelected() {
+        return mSelected.size();
+    }
+
+    public HashSet<Long> getSelection() {
+        return mSelected;
+    }
 }

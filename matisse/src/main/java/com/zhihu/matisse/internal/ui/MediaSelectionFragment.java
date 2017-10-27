@@ -26,6 +26,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.michaelflisar.dragselectrecyclerview.DragSelectTouchListener;
+import com.michaelflisar.dragselectrecyclerview.DragSelectionProcessor;
 import com.zhihu.matisse.R;
 import com.zhihu.matisse.internal.entity.Album;
 import com.zhihu.matisse.internal.entity.Item;
@@ -35,6 +37,8 @@ import com.zhihu.matisse.internal.model.SelectedItemCollection;
 import com.zhihu.matisse.internal.ui.adapter.AlbumMediaAdapter;
 import com.zhihu.matisse.internal.ui.widget.MediaGridInset;
 import com.zhihu.matisse.internal.utils.UIUtils;
+
+import java.util.HashSet;
 
 public class MediaSelectionFragment extends Fragment implements
         AlbumMediaCollection.AlbumMediaCallbacks, AlbumMediaAdapter.CheckStateListener,
@@ -48,6 +52,10 @@ public class MediaSelectionFragment extends Fragment implements
     private SelectionProvider mSelectionProvider;
     private AlbumMediaAdapter.CheckStateListener mCheckStateListener;
     private AlbumMediaAdapter.OnMediaClickListener mOnMediaClickListener;
+
+    // Drag multiple selection
+    private DragSelectTouchListener mDragSelectTouchListener;
+    private DragSelectTouchListener.OnDragSelectListener onDragSelectionListener;
 
     public static MediaSelectionFragment newInstance(Album album) {
         MediaSelectionFragment fragment = new MediaSelectionFragment();
@@ -91,10 +99,13 @@ public class MediaSelectionFragment extends Fragment implements
         super.onActivityCreated(savedInstanceState);
         Album album = getArguments().getParcelable(EXTRA_ALBUM);
 
+        initDragSelection();
+
         mAdapter = new AlbumMediaAdapter(getContext(),
                 mSelectionProvider.provideSelectedItemCollection(), mRecyclerView);
         mAdapter.registerCheckStateListener(this);
         mAdapter.registerOnMediaClickListener(this);
+        mAdapter.registerDragSelectTouchListener(mDragSelectTouchListener);
         mRecyclerView.setHasFixedSize(true);
 
         int spanCount;
@@ -109,8 +120,23 @@ public class MediaSelectionFragment extends Fragment implements
         int spacing = getResources().getDimensionPixelSize(R.dimen.media_grid_spacing);
         mRecyclerView.addItemDecoration(new MediaGridInset(spanCount, spacing, false));
         mRecyclerView.setAdapter(mAdapter);
+        mRecyclerView.addOnItemTouchListener(mDragSelectTouchListener);
         mAlbumMediaCollection.onCreate(getActivity(), this);
         mAlbumMediaCollection.load(album, selectionSpec.capture);
+    }
+
+    private void initDragSelection() {
+        // Enable drag multiple selection
+        onDragSelectionListener = new DragSelectTouchListener.OnDragSelectListener() {
+            @Override
+            public void onSelectChange(int start, int end, boolean isSelected) {
+                mAdapter.selectRange(start, end, isSelected);
+            }
+        };
+
+        mDragSelectTouchListener = new DragSelectTouchListener()
+                .withSelectListener(onDragSelectionListener)
+                .withDebug(true);
     }
 
     @Override
